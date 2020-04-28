@@ -1,0 +1,51 @@
+---
+title: "KSU R Day"
+output: html_notebook
+---
+
+1. 5 minutes on motivation
+2. Now we get to the code. We're going to build a map of the world, shade it by GDP, use it to pull in some stock prices, then chart the stock returns a few ways. It's going to be pure data visualization, we're going to include some linked java script visualizations but it's all R code! And hopefully I can convince you that there's so much we can do with R that is not statistics. 20 minutes
+3. Two stories about Shiny: talk to people, and taking the lab approach. 10 minutes
+
+
+We're going to change gears a little bit here and talk a piece of the R toolchain, specifically data visualization and Shiny. 
+
+First off, who out there is familiar with Shiny? Building apps? Seen Shiny apps? Ok good. 
+
+By way of brief background, Shiny is an R package that was built by Joe Cheng the CTO of RStudio. And Shiny allows us to wrap our R code into an interactive web app - so, CSS, HTML, Javascript - we don't have to learn any of it! Shiny will translate our R code for us.
+
+The reason I want to focus on Shiny and data visualization today is that I want to make the case or try to motivate us to spend more time on or put in a lot energy thinking about the end consumer of our work. 
+As data scientists, our inclination is to focus a lot of energy on our theories, hypothesis, getting, cleaning and storing our data - which I'm sure we've all heard can be 50-70% of a data scientists time, drawing inferences, and then communicating our results with an R squared and p-values. But I want to make the case that 
+
+That's where data visualization is that bridge between the data scientists and the broader audience who can make use of our work. So, my goal today is to implore us all to spend as much energy on data visualization and communication our results as we do on the statistics that underlie them - the visualizations are what 99% of our audience will experience, how much of our time should we spend there? I don't know but a lot! 
+
+This is a Shiny app, with a few static plots from ggplot, a two javascript based charts from highcharter and leaflet. But here's the code: it's all R, here's the map, here's chart, and Shiny has translated it for us along with some R packages. 
+
+
+This Shiny app is a toy and it has too many data visualizations - not  many users will click on these 5 visualizations. but i was intentionally over inclusive because it pertains to a couple fo the most successful deployments of Shiny that I've seen at the enterprise level. toggle back to app
+
+The first was a mortgage app - successful app, i asked how, he said went and visited, extreme example of thinking about the end user from the beginning; not natural to us! 
+
+Second, trading analytics at an energy firm, no more powerpoint! 50 apps, 5, 5,
+
+
+I want to talk about data visualization with Shiny and reaching a broader audience at the enterprise level, and by broader I mean people who aren't R coders or analytics junkies! I have 3 goals, 1 of which is pretty ephemeral and the other 2 more concrete. The ephemeral and most important motivation for this talk to make the argument, and hopefully convince everyone, that data visualization and the end user is so important that we should spend as much or more time on data visualization as on the theorizing, data gathering, modeling, rejecting a null, and means doing something that's maybe, or for me, not natural. at the enterprise level, if we want to reach an audience outside of R coders or other analytics gurus, we need tmake our work intuitive and actionable - and to me that comes from data vis. Remember, our end users are busy, we're trying to get 30 seconds for our work, or get attention in 30 seconds. it needs to be appealing and welcoming, and interactivitity is good too. 
+
+The second goal here is to talk about Shiny, and since this is an R gathering, we'll get into the code of a Shiny app that has a lot going on, but that has some broad lessons. 
+
+And third, i'll touch on a couple of stories from teh financial world about successful Shiny apps and some practices that I think enable that outcome. 
+
+Alright, if the overarching goal is to think about the end user, the underlying goal is to argue for the powr of Shiny by way of an example.
+
+Let's look at this Shiny app. 
+What it does is this, map shaded by perofrmance of stock market, the 5 vis's below, a java script based map, two other JS, flat HTML, but I only had ot write the R .Shiny translates the rest! It's an r package, written by joe cheng that wraps up R code to a web app. peopl ask what can they do? anything you can do with R! 
+
+Let's go through how to build this app and we'll start with the map.
+But note, we dont' NEED this map, we could have a drop down or something. 
+
+Let's go through how to build it. 
+
+Goals are to motivate the data visualization time and thought, and dissect a Shiny app for a few nice tools: map building and shading with leaflet, and most importantly, how to connect our map or wire it up to other visualizatons. that structure can be used for other map to chart visualizations, where we might want to use a shaded map as a hook to something deeper inside our data.
+
+
+

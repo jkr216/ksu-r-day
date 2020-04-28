@@ -1,11 +1,6 @@
 ---
-title: "KSU R Day Wrangle"
-resource_files:
-- etf_prices_ytd.RDat
-output:
-  html_document:
-    df_print: paged
-  html_notebook: default
+title: "Leaflet Building"
+output: html_notebook
 ---
 
 ```{r setup, message = FALSE}
@@ -14,8 +9,78 @@ knitr::opts_chunk$set(message = FALSE, warning = FALSE)
 library(tidyverse)
 library(tidyquant)
 library(timetk)
-library(rgeos)
 ```
+
+# let's build a map of the earth
+
+```{r}
+library(rnaturalearth)
+library(rgeos)
+
+world <- ne_countries(type = "countries", returnclass = 'sf') #sp is other type
+
+# For the sake of brevity, let's look at just the first 6 countries
+world %>%
+  select(name, gdp_md_est, pop_est, lastcensus, economy, subregion) %>% 
+  slice(1:6)
+
+#If you want to peek at the longitude and latitude, use world$geometry
+class(world$geometry)
+```
+
+
+
+```{r}
+library(leaflet)
+
+# Create a palette with different shades of blue for different
+# GDP estimates.
+
+gdpPal20 <- colorQuantile("Blues", 
+                        world$pop_est, 
+                        n = 20)
+
+gdpPal10 <- colorQuantile("Blues", 
+                        world$pop_est, 
+                        n = 10)
+
+gdpPal5 <- colorQuantile("Blues", 
+                        world$pop_est, 
+                        n = 5)
+```
+
+
+```{r}
+# Make a popup object.
+# Notice we're referencing the column names with the '$', same as we would with a non-spatial dataframe.
+economyPopup <- paste0("<strong>Country: </strong>", 
+                world$name, 
+                "<br><strong>Last Census: </strong>", 
+                 world$lastcensus)
+```
+
+
+
+```{r}
+ # Build our leaflet map object.
+
+leaf_world_economy <- 
+  leaflet(world) %>%
+  addProviderTiles("CartoDB.Positron") %>% 
+  setView(lng =  20, lat =  15, zoom = 2) %>%
+      addPolygons(stroke = FALSE, 
+                  smoothFactor = .2, 
+                  fillOpacity = .8, 
+                  color = ~gdpPal10(pop_est), 
+                  layerId = ~name, 
+                  popup = economyPopup)
+
+# Display that object below.
+
+leaf_world_economy
+```
+
+
 
 ```{r}
 # Let's build a dataframe to store these ticker symbols, country names and YTD numbers.
@@ -48,34 +113,20 @@ etf_ticker_country
 # Using getSymbols to import the ETF price histories will take a minute or two or 
 # five - 41 time series is a lot of data. 
 
-# Let select just the Adjusted prices of the ETFs and merge them into a list.
-# We'll use map and the pipe operator for that purpose. Again, this is for testing. It's not 
-# going into production in our app.
 
 etf_prices_ytd <- 
   getSymbols(etf_ticker_country$tickers, 
              auto.assign = TRUE, 
              from = "2018-01-01", 
              warnings = FALSE) %>%
-  # Let's use the map function to get just the Adjusted prices
   map(~Ad(get(.))) %>% 
-  # Now use the reduce() function to combine to one xts object
   reduce(merge) %>% 
-  # some name cleanup
   `colnames<-`(etf_ticker_country$name) %>%
-  # toggle to a dataframe
   tk_tbl(preserve_index = TRUE, rename_index = "date") %>% 
-  # cleanup any NAs
   na.omit() %>% 
-  # we want ytd, don't need data prior to January 2017
-  #filter(date > "2016-12-31") %>%
-  # gather to long, tidy format
   gather(name, price, -date) %>% 
-  
   group_by(name) %>%
-  # calculate ytd returns
   summarise(ytd = round(((last(price) - first(price))/first(price) * 100), 2))
-
 
 ```
 
@@ -88,62 +139,10 @@ etf_ticker_name_ytd <- merge(etf_prices_ytd, etf_ticker_country, by = "name", al
 etf_ticker_name_ytd
 ```
 
-# Now let's build a map of the earth
-
-```{r}
-library(rnaturalearth)
-world <- ne_countries(type = "countries", returnclass = 'sf')
-
-# For the sake of brevity, let's look at just the first 6 countries
-world %>% slice(1:6)
-
-#If you want to peek at the longitude and latitude, use world$geometry
-```
-
-
-
-```{r}
-library(leaflet)
-
-# Create a palette with different shades of blue for different
-# GDP estimates.
-
-gdpPal <- colorQuantile("Blues", world$gdp_md_est, n = 20)
-```
-
-
-```{r}
-# Make a popup object.
-# Notice we're referencing the column names with the '$', same as we would with a non-spatial dataframe.
-economyPopup <- paste0("<strong>Country: </strong>", 
-                world$name, 
-                "<br><strong>Market Stage: </strong>", 
-                 world$economy)
-```
-
-
-
-```{r}
-# Build our leaflet map object.
-
-leaf_world_economy <- leaflet(world) %>%
-  addProviderTiles("CartoDB.Positron") %>% 
-  setView(lng =  20, lat =  15, zoom = 2) %>%
-      addPolygons(stroke = FALSE, smoothFactor = 0.2, fillOpacity = .7, color =
-      ~gdpPal(gdp_md_est), layerId = ~name, popup = economyPopup)
-
-# Display that object below.
-
-leaf_world_economy
-```
-
 
 ```{r}
 # Once we run this line of code, our ticker symbols and ytd numbers will be added
 # to the simple features dataframe.
-
-library(sf)
-library(leaflet)
 
 world_etf <- merge(world, etf_ticker_name_ytd, by = "name", all.x = TRUE)
 
@@ -161,7 +160,13 @@ world_etf %>%
 # Create a palette with different shades of red yellow green for different
 # year-to-date performances. 
 
-ytdPal <- colorQuantile("RdYlGn", world_etf$ytd, n = 20)
+ytdPal_RdYlGn <- colorQuantile("RdYlGn", 
+                               world_etf$ytd, 
+                               n = 20)
+
+ytdPal_Blue <- colorQuantile("Blues", 
+                             world_etf$ytd, 
+                             n = 20)
 ```
 
 
@@ -182,26 +187,18 @@ ytdPopup <- paste0("<strong>Country: </strong>",
 
 leaf_world_etf <- leaflet(world_etf) %>%
   addProviderTiles("CartoDB.Positron") %>% 
-  setView(lng =  20, lat =  15, zoom = 2) %>%
-      addPolygons(stroke = FALSE, smoothFactor = 0.2, fillOpacity = .7,
-                  
-      # The next line of code is really important for creating the map we want to use later.       
-      
-      color =~ytdPal(ytd), layerId = ~tickers, popup = ytdPopup)
+  setView(lng =  20, 
+          lat =  15, 
+          zoom = 2) %>%
+      addPolygons(stroke = FALSE, 
+                  smoothFactor = 0.2, 
+                  fillOpacity = .7,      
+      color =~ytdPal_RdYlGn(ytd), 
+      # Important line of code next
+      layerId = ~tickers, 
+      popup = ytdPopup)
 
 leaf_world_etf
 ```
-
-
-This map is going to play a crucial role in our Shiny app and the last step is to save the leaflet object for use in our flexdashboard. 
-
-
-```{r}
-# Save the shapefile but NOT the ETF price data to a .RDat file.
-# We'll load this file and use it in our Shiny app.
-
-save(world_etf, file = 'etfData.RData')
-```
-
 
 

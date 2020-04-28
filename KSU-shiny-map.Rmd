@@ -1,0 +1,179 @@
+---
+title: "Global ETF Map"
+resource_files:
+runtime: shiny
+output:
+  flexdashboard::flex_dashboard:
+    source_code: embed
+---
+
+
+```{r setup, include = FALSE}
+# Load packages
+knitr::opts_chunk$set(message=FALSE, warning=FALSE)
+library(dygraphs)
+library(leaflet)
+library(highcharter)
+library(timetk)
+library(tidyverse)
+library(tidyquant)
+library(rgeos)
+library(sf)
+
+
+# Load data here. Remember, we saved the leaflet map with tickers, country names and ytd in the
+# Notebook.
+
+load('etfData.RData')
+
+
+ytdPal <- colorQuantile("RdYlGn", world_etf$ytd, n = 20)
+
+
+ytdPopup <- paste0("<strong>Country: </strong>", 
+                world_etf$name,
+                "<br><strong> Year-to-date: </strong>", 
+                world_etf$ytd, "%")
+
+leaf_world_etf <- leaflet(world_etf) %>%
+  addProviderTiles("CartoDB.Positron") %>% 
+  setView(lng =  20, lat =  15, zoom = 2) %>%
+      addPolygons(stroke = FALSE, smoothFactor = 0.2, fillOpacity = .7,
+                  color =~ytdPal(ytd), layerId = ~tickers, popup = ytdPopup)
+
+```
+
+
+World Map Selector {data-orientation=rows}
+=====================================
+
+Row {data-height=650}
+-------------------------------------
+
+### World Map
+
+```{r}
+leafletOutput("map1")
+
+output$map1 <- renderLeaflet({
+    leaf_world_etf
+})
+
+# Crucial line of code below. 
+# This is how our map is connected to all of our other data visualizations. 
+# We translate the click into a country ETF symbol, then proceed same as a script.
+
+clickedCountry <- eventReactive(input$map1_shape_click, {
+     return(input$map1_shape_click$id)
+     })
+
+# Data import, wrangle, transform. We're done with the map.
+
+etf <- reactive({
+  symbol <- clickedCountry()
+  getSymbols(symbol, src = 'yahoo', 
+             auto.assign = TRUE, warnings = FALSE) %>% 
+  map(~Ad(get(.))) %>% 
+  reduce(merge) %>%
+  `colnames<-`("price")
+  })
+
+asset_returns <- reactive({
+  
+prices <- etf()
+  
+  asset_returns <- 
+      prices %>% 
+      to.monthly(indexAt = "last", OHLC = FALSE) %>% 
+      tk_tbl(preserve_index = TRUE, rename_index = "date") %>% 
+      mutate(returns = (log(price) - log(lag(price))))
+})
+
+```
+
+Row {.tabset .tabset-fade}
+-------------------------------------
+
+### Dygraph
+
+```{r, echo = FALSE}
+   
+renderDygraph({
+    
+    validate(need(input$map1_shape_click$id != "", "Please click on a country to display its ETF price history."))
+
+    dygraph(etf(), main = clickedCountry())  %>%
+      dyRangeSelector(height = 20) %>%
+      dyShading(from = "2007-12-01", to = "2009-06-01", color = "#FFE6E6") %>% 
+      dyEvent(x = "2016-11-08", label = "Trump!", labelLoc = "top", color = "black")
+      
+    })
+   
+```
+
+### Highcharter 
+
+```{r}
+   
+renderHighchart({
+
+validate(need(input$map1_shape_click$id != "", "Please click on a country to display its ETF price history."))
+
+highchart(type = "stock") %>% 
+  hc_title(text = as.character(clickedCountry())) %>%
+  hc_add_series(etf(), name = as.character(clickedCountry())) %>% 
+  hc_navigator(enabled = FALSE) %>% 
+  hc_scrollbar(enabled = FALSE)
+})
+```
+
+
+### Scatterplot
+
+```{r message=FALSE, warning=FALSE}
+renderPlot({
+  
+  asset_returns <- asset_returns()
+  
+  ggplot(data = asset_returns, aes(x = date)) +
+  geom_point(aes(y = returns), colour = "cornflowerblue") +
+  geom_vline(xintercept = as.numeric(as.Date("2016-11-30")), color = "pink") +
+  annotate(geom="text", x=as.Date("2016-11-30"), 
+           y = -.05, label = "Trump", fontface = "plain", 
+           angle = 90, alpha = .5, vjust =  1.5) +
+  ylab("percent monthly returns")
+})
+
+```
+
+### Histogram
+
+```{r message=FALSE, warning=FALSE}
+renderPlot({
+  asset_returns <- asset_returns()
+  
+  asset_returns %>% 
+    ggplot(aes(x = returns)) +
+    geom_histogram(alpha = 0.25, binwidth = .01, fill = "cornflowerblue") 
+})
+
+```
+
+### Density Chart
+
+```{r message=FALSE, warning=FALSE}
+renderPlot({
+  
+  asset_returns <- asset_returns()
+
+  asset_returns %>% 
+    ggplot(aes(x = returns)) +
+    stat_density(geom = "line", size = 1, color = "cornflowerblue") 
+
+           
+})
+```
+
+
+
+
